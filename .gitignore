@@ -1,0 +1,6 @@
+# Nothing derived from the export gets committed. The archive holds a home
+# address, commute endpoints, and — once mail lands — other people's words.
+data/private/
+Takeout/
+*.mbox
+*.zip
