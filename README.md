@@ -8,21 +8,50 @@ website and nothing in it is published.
 ## Layout
 
 ```
-ingest/takeout_ingest.py   Takeout -> one normalized event stream
+ingest/takeout_ingest.py   Takeout -> normalized event stream
+ingest/sms_ingest.py       multi-GB SMS Backup & Restore XML -> messages (streaming)
+ingest/redact.py           strip identifiers, swap names for role labels
+ingest/correlate.py        join messages + places into one day-by-day chronology
 ingest/build_viewer.py     event stream -> a local, self-contained HTML timeline
-docs/getting-the-rest.md   what the current export is missing, and how to get it
-data/private/              generated output — gitignored, never committed
+docs/getting-the-rest.md   what the Takeout export is missing, and how to get it
+docs/what-redaction-cannot-do.md   read before treating output as anonymous
+data/private/              all generated output — gitignored, never committed
 ```
 
 ## Run
 
 ```
+# locations
 python3 ingest/takeout_ingest.py path/to/Takeout -o data/private/events.json
-python3 ingest/build_viewer.py
-open data/private/timeline.html
+
+# messages — handles multi-GB files; base64 attachments are never loaded
+python3 ingest/sms_ingest.py sms.xml
+
+# assign roles, then scrub
+python3 ingest/redact.py                 # writes roles.json, then stops
+$EDITOR data/private/roles.json          # set role + include for each contact
+python3 ingest/redact.py                 # writes redacted.jsonl
+
+# cross-reference
+python3 ingest/correlate.py --gaps
+python3 ingest/correlate.py --from 2019-01 --to 2019-06 -v
+
+# local timeline
+python3 ingest/build_viewer.py && open data/private/timeline.html
 ```
 
-No dependencies, no network calls, no server.
+No dependencies, no network calls, no server. Measured: 3.2 GB archive parsed in
+37s, with all 3.2 GB of inline attachment data discarded unread.
+
+## The raw archive never gets committed
+
+A 2 GB SMS export cannot go in git anyway — GitHub rejects any file over 100 MB,
+and Git LFS free tier is 1 GB. But the reason not to is that the raw file is
+thousands of other people's private messages, and git history is permanent.
+
+Raw archives are **input**. They stay on your disk. What gets committed is what
+survives `redact.py` and your own review of it — nothing reaches a public repo
+by default, because `include` defaults to false for every contact.
 
 ## What the current export holds
 
@@ -35,10 +64,10 @@ mail, no texts, no documents and no location history in it — see
 
 Three things are unresolved, and they are design questions, not details:
 
-1. **Other people's words.** A mail export is mostly other people writing to you.
-   In a custody matter that means the children's mother and probably the children.
-   They cannot consent and did not choose to be published. Any public build needs
-   a redaction pass that is a real step, not an intention.
+1. **Other people's words.** A message archive is mostly other people writing to
+   you privately. In a custody matter that means the children's mother and
+   probably the children. `redact.py` is the real step, but removing phone
+   numbers is not anonymization — see `docs/what-redaction-cannot-do.md`.
 
 2. **A narrative frame is not a legal shield.** Calling a first-person account a
    "story" does not make it inadmissible. A self-authored confession is ordinarily

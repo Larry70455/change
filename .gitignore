@@ -4,3 +4,6 @@ data/private/
 Takeout/
 *.mbox
 *.zip
+__pycache__/
+*.pyc
+*.xml
