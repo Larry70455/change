@@ -31,6 +31,15 @@ PSP frame loop with the native renderer stubbed. Rules and engine are unchanged;
 
 The PSP can't use the locked-card crop. The native `art()` call only supports its built-in crop modes, and the C source isn't in the handoff.
 
+## AI opponent (shared engine, web and PSP)
+
+AI-vs-AI test runs found two weaknesses in the AI.
+
+1. **It missed breaks it could have made.** In 15 of 100 games the losing AI could have broken the winning line within three plays and didn't. Every one of those rivals had a face-down Ward. The first Hex is blocked and only the second flips the card, so the planner saw no gain after the first Hex, dropped that line, and spent its Marks elsewhere. A new `breakLine` search now runs only when a rival would win at the end of the turn. It looks for the shortest run of Hexes, Replaces and Mark restores that breaks every winning line, and it checks at most 20 positions in a step. That is cheap enough for the PSP.
+2. **It handed rivals Locks.** Hexing a rival's upright card to reversed lets them Bless it next turn into a permanent Lock. Locks decide most games: 85% of wins had all four cards Locked. The AI now judges a rival's board after up to two Blesses, which matches the two + Marks they refresh each turn.
+
+Results over 400 games, alternating seats: **the new AI beats the old one 82% of the time.** Avoidable losses went from 15 per 100 to 0. Raising the Lock weight or changing the risk weight made it weaker, so those stay as they were. Because Guided Practice uses the same AI, it is tougher there too. `tests/verify.mjs` still confirms the web and PSP engines match.
+
 ## Recommended next steps (not done)
 
 1. **Explain the Hex flip on screen.** The banner says it happened. A small arrow animation on the flipped card would show the direction.

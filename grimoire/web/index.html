@@ -1779,10 +1779,20 @@ function createGreatWork(deck, rng=Math.random) {
     return [0,14,35,68,153][Math.max(up,down)]+4*Math.min(up,down)+8*protectedCount+
       10*p.wards.length+(threatened(p)&&p.wards.length?14:0);
   }
+  // A rival refreshes two + Marks each turn and can Bless reversed cards into upright Locks.
+  function outlook(q){
+    let blessings=2;
+    const work=Object.fromEntries(elements.map(e=>{
+      const w=q.work[e];
+      if(w?.reversed&&!w.locked&&blessings>0){blessings--;return [e,{...w,reversed:false,locked:true}]}
+      return [e,w];
+    }));
+    return {...q,work};
+  }
   function positionValue(s,seat){
     if(s.phase==='roundOver')return s.winner===seat?10000:s.winner===null?0:-10000;
     const p=s.players[seat], rivals=s.players.filter((_,i)=>i!==seat);
-    const risk=rivals.map(q=>threatened(q)?235:boardValue(q)*.57);
+    const risk=rivals.map(q=>threatened(q)?235:boardValue(outlook(q))*.57);
     return boardValue(p)+handValue(p)*.76-Math.max(...risk)-risk.reduce((n,v)=>n+v,0)*.12;
   }
   function planningCopy(s){
@@ -1841,6 +1851,32 @@ function createGreatWork(deck, rng=Math.random) {
     }
     return best;
   }
+  // Find the shortest run of Hexes, Replaces and restores that leaves no rival aligned.
+  // A Ward can absorb the first Hex, so this looks past plays that show no gain on their own.
+  function breakLine(s,depth){
+    let budget=1500;
+    const search=(x,d)=>{
+      const p=active(x),seen=new Set(),moves=[];
+      for(const a of legal(x)){
+        if(a.kind!=='Hex'&&(a.kind!=='Replace'||a.i===x.turn))continue;
+        const {cost,...effect}=a,key=JSON.stringify(effect);
+        if(seen.has(key))continue;
+        seen.add(key);
+        moves.push({a});
+      }
+      for(const face of signs)if(canRestore(x,face))moves.push({face,ids:cheapest(p).slice(0,restorePrice(x))});
+      for(const move of moves){
+        if(--budget<0)return null;
+        const y=project(x,move);
+        if(y.phase!=='act')continue;
+        if(winningRival(y)<0)return [move];
+        if(d>1){const rest=search(y,d-1);if(rest)return [move,...rest];}
+      }
+      return null;
+    };
+    for(let d=1;d<=depth;d++){const found=search(s,d);if(found)return found[0];}
+    return null;
+  }
   function aiStep(s){
     if(s.phase==='pass'){ready(s);return}
     if(s.phase==='ward'){resolveHex(s,s.players[s.pending.i].wards.length?0:null);return}
@@ -1857,6 +1893,11 @@ function createGreatWork(deck, rng=Math.random) {
       if(lesson){execute(s,lesson);return}
     }
     const urgent=winningRival(s)>=0;
+    if(urgent){
+      const fix=breakLine(s,4);
+      if(fix?.a){execute(s,fix.a);return}
+      if(fix?.face){restoreMark(s,fix.face,fix.ids);return}
+    }
     const move=planTurn(s,urgent||alignment(p)>=2?4:2);
     if(move?.a){execute(s,move.a);return}
     if(move?.face){restoreMark(s,move.face,move.ids);return}
