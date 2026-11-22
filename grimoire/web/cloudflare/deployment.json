@@ -1,0 +1,36 @@
+{
+  "account": "4a51a810fc3401af9d8a53d334bf5ead",
+  "worker": "grimoire",
+  "deployment": "bfb7c036-bdb7-48fd-a97b-8ae5af0d6990",
+  "versions": [
+    {
+      "version_id": "71945b35-9839-4780-bff6-c01958230bf1",
+      "percentage": 100
+    }
+  ],
+  "domains": [
+    "grimoire.schrimpf.xyz"
+  ],
+  "runtime": {
+    "assets": {
+      "html_handling": "auto-trailing-slash",
+      "not_found_handling": "none",
+      "serve_directly": true,
+      "raw_run_worker_first": false,
+      "base_path": "/"
+    },
+    "compatibility_date": "2026-11-10",
+    "usage_model": "standard"
+  },
+  "bindings": [
+    {
+      "name": "ASSETS",
+      "type": "assets"
+    },
+    {
+      "name": "GREAT_WORK_RELEASES",
+      "type": "kv_namespace",
+      "namespace_id": "a4d8ce55cf554e4d95d8a0febf851045"
+    }
+  ]
+}

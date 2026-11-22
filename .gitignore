@@ -7,3 +7,8 @@ Takeout/
 __pycache__/
 *.pyc
 *.xml
+
+# Grimoire: regenerated builds (node grimoire/shared/make-offline.mjs, python3 grimoire/psp/pack.py)
+grimoire/offline/
+grimoire/psp/build/
+!grimoire/psp/reference/*.zip
