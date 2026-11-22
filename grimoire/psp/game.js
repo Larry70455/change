@@ -923,6 +923,8 @@ label(message,185,253,paper,40,.95);
 }else{
 const prompt=state.phase==='draw'?'Free draw':state.phase==='discard'?'Discard a card':'';
 if(prompt)label(prompt,166,254,paper,30,.85);
+else if(onTurn&&state.phase==='act'&&!menu){icon(22,164,252,0xffffff);label('Play',184,254,paper,6,.85);icon(25,226,252,0xffffff);label('Inspect',246,254,paper,9,.85);icon(24,310,252,0xffffff);label('Options',330,254,paper,9,.85)}
+else if(!onTurn&&state.players[state.turn].ai)label('Thinking...',166,254,muted,14,.85);
 if(guide&&onTurn&&state.phase==='act')icon(24,452,252,gold);
 }
 if(rivalLevel===2)icon(16,438,52,dangerInk[rivalLevel],true);

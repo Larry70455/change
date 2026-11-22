@@ -1423,6 +1423,59 @@ body:has(#game.gw-screen:not([hidden])){overflow:hidden}
 #game .gw-board-tier[data-tier=Major]{color:#ffda91}
 #game .gw-board-tier[data-tier=Master]{color:#ffd47f}
 </style>
+<style id="gw-ux-pass">
+/* UX pass: locked art, centering, readability */
+/* Locked cards lie sideways; show only the central illustration, cropped inside the printed tier triangles. */
+#game .gw-board-tile .gw-portrait-locked{overflow:hidden}
+#game .gw-board-tile .gw-portrait-locked img{transform:rotate(90deg) scale(2.25)}
+/* Badges scale with the card instead of the window, so small cards stay readable. */
+#game .gw-board-tile{container-type:inline-size}
+@supports (width:1cqi){
+  #game .gw-board-tile .gw-board-element,#game .gw-board-tile .gw-board-tier,#game .gw-board-tile .gw-board-orientation{height:clamp(13px,19cqi,26px);min-width:clamp(13px,19cqi,26px);border-radius:clamp(3px,4cqi,5px)}
+  #game .gw-board-tile .gw-board-element svg{width:clamp(10px,14cqi,21px)}
+  #game .gw-board-tile .gw-board-tier{width:clamp(16px,26cqi,32px)}
+  #game .gw-board-tile .gw-deck-count{height:clamp(15px,20cqi,26px);font-size:clamp(.66rem,13cqi,.95rem)}
+}
+/* Game menu and fullscreen were nearly invisible (15% opacity). */
+#game .gw-table-corner{opacity:.75}
+#game .gw-table-corner:is(:hover,:focus-within){opacity:1}
+/* End turn is a labeled button, not a bare arrow. */
+#game .gw-table-finish button.gw-end-turn{display:inline-flex;align-items:center;gap:4px;min-height:26px;padding:2px 8px;border-radius:6px;
+  background:linear-gradient(145deg,#bff3cf,#7fcf9b);color:#14301f;border-color:#d7ffe4;font:750 .74rem/1 system-ui,sans-serif;white-space:nowrap}
+#game .gw-table-finish button.gw-end-turn:hover{background:#d9ffe4}
+/* Captions for the Shelf, draw pile, and hand. */
+#game p.gw-table-caption{display:flex;justify-content:space-between;gap:8px;margin:0 2px 4px;min-height:14px;color:#cdb9cf;font:650 .7rem/1.2 system-ui,sans-serif;letter-spacing:.02em}
+#game .gw-table-shelf[data-draw=true] p.gw-table-caption{color:#f6dda8}
+#game .gw-table-shelf p.gw-table-caption span:last-child{flex:none;width:var(--card-width,auto);text-align:center}
+#game .gw-caption-hint{opacity:.75;font-weight:500}
+#game .gw-expanded:has(.gw-action-prompt){width:min(460px,94vw)}
+#game .gw-expanded:has(.gw-action-prompt)>header{margin-bottom:0}
+#game .gw-action-prompt h2{margin-top:0}
+#game .gw-hand-actions .gw-action-row:first-child>button:first-child{border-color:#efd49a;background:#5a4060}
+#game .gw-table-hand-cards .gw-board-tile[data-usable=true]{border-color:#e7c27f;box-shadow:0 0 0 1px #e7c27f80,0 0 10px #e1b36a40}
+#game .gw-table-phase{white-space:nowrap}
+#game .gw-table-rival .gw-table-phase{color:#cfe1ff}
+/* Practice tip reads as a callout. */
+#game p.gw-table-practice{width:fit-content;max-width:100%;margin:0 auto 6px;padding:5px 10px;border:1px solid #c59d5c;border-radius:999px;background:#33243a;font-size:.84rem}
+/* Start screen stays a readable column on wide monitors. */
+#game:not(.gw-in-play)>*{max-width:1080px;margin-inline:auto}
+@media (min-width:740px), (orientation:landscape) and (min-width:620px){
+  /* Account for captions in the side column height budget. */
+  #game .gw-table-grid{
+    --side-card-width:calc((var(--play-height) - 104px) * .733 / (1 + var(--hand-rows)));
+    /* Columns hug their cards and the whole table centers in the window. */
+    grid-template-columns:repeat(2,minmax(0,max-content));
+    grid-template-rows:auto auto;
+    justify-content:center;
+    align-content:center;
+  }
+  #game .gw-table-fields{align-self:start;align-content:start}
+  #game .gw-table-hand{align-self:start}
+}
+@media (max-width:739px) and (orientation:portrait), (max-width:619px){
+  #game .gw-caption-hint{display:none}
+}
+</style>
 <script>
 function createGreatWork(deck, rng=Math.random) {
   const elements=['Air','Water','Earth','Fire'];
@@ -2117,12 +2170,12 @@ document.addEventListener('DOMContentLoaded',()=>{
         }).join(''):'';
         const cornerControls=row===0?`<div class="gw-table-corner gw-table-corner-left">${iconControl('fullscreen',fullscreenActive()?'Exit fullscreen':'Fullscreen','fullscreen',`aria-pressed="${fullscreenActive()}"`)}</div>
           <div class="gw-table-corner gw-table-corner-right">${iconControl('menu','Game settings','expand:menu')}</div>`:'';
-        const phaseLabel=i===privateIndex?(drawing?'Free draw':discarding?'Discard a card':''):'';
+        const phaseLabel=i===privateIndex?(drawing?'Free draw':discarding?'Discard a card':''):isTurn&&q.ai?'Thinking…':isTurn?'Their turn':'';
         return `<article class="gw-table-field ${own?'gw-table-own':'gw-table-rival'}" data-seat="${i}" data-turn="${isTurn}" data-threat="${threat}" aria-label="${h(seatName(i)+' field')}" ${isTurn?'aria-current="true"':''}>
           <header class="gw-table-field-head ${row===0?'gw-table-with-controls':''}">${cornerControls}<h3>${h(seatName(i))}</h3>
           ${phaseLabel?`<span class="gw-table-phase" role="status">${phaseLabel}</span>`:''}
           ${marks?`<div class="gw-table-marks" aria-label="${h(seatName(i))} Marks">${marks}</div>`:''}
-          ${isTurn&&playing?`<div class="gw-table-finish">${iconControl('finish','Finish turn','end')}</div>`:''}
+          ${isTurn&&playing?`<div class="gw-table-finish"><button type="button" class="gw-end-turn" data-gw="end" title="Finish turn"><span>End turn</span>${icon('finish',16)}</button></div>`:''}
           <div class="gw-table-wards" aria-label="${q.wards.length} ${q.wards.length===1?'Ward':'Wards'}">${wards}</div></header>
           <div class="gw-table-slots">${E.map(e=>{
             const w=q.work[e], k=i+e, prior=faces.get(k);
@@ -2144,7 +2197,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       faces=nextFaces;
       const lessonDraw=s.practice&&s.turnNumber===0;
       const drawPick=s.practice?(lessonDraw&&s.shelf.length?{i:0,id:s.shelf[0],e:'Water'}:drawAdvice(s)):null;
-      const shelf=`<section class="gw-table-shelf" data-draw="${drawing}" aria-label="Shelf and draw pile"><div class="gw-table-market">${s.shelf.map((id,i)=>{
+      const shelf=`<section class="gw-table-shelf" data-draw="${drawing}" aria-label="Shelf and draw pile"><p class="gw-table-caption"><span>${drawing?'Take one card · Shelf or draw pile':'Shelf'}</span><span>Draw pile</span></p><div class="gw-table-market">${s.shelf.map((id,i)=>{
         const command=drawing?'draw:'+i:playing?'market:'+i:'inspect:'+id+':both';
         return `<button type="button" class="gw-board-tile" data-gw="${h(command)}" ${canDrag?`data-drag-card="${h(id)}" data-drag-source="${i}"`:''} data-suggested="${drawing&&drawPick?.i===i}" data-element="${h(card(id).element)}" aria-label="${h((drawing?'Take ':'')+publicCardName(id))}" title="${h(card(id).name)}">${boardCard(id)}</button>`;
       }).join('')}${s.deck.length?`<button type="button" class="gw-board-tile gw-table-deck" ${playing?'data-drop-deck':''} ${canDrag?'data-drag-card data-drag-source="deck"':''} data-gw="${drawing?'draw:deck':playing?'deck-choice':'inspect-back'}" aria-label="Draw pile, ${s.deck.length} cards" title="Draw pile">${backArt()}<span class="gw-deck-count" aria-hidden="true">${s.deck.length}</span></button>`:''}</div></section>`;
@@ -2175,7 +2228,7 @@ document.addEventListener('DOMContentLoaded',()=>{
         const lessonRight=ordered.find(({a})=>s.turnNumber===2&&a.kind==='Bless'&&a.e==='Air');
         const finishLesson=playing&&s.turnNumber===0&&p.work.Air&&!p.work.Air.reversed;
         const tip=drawing?drawPick?'Take '+card(drawPick.id).name+' from the Shelf.':'Take a card from the Shelf.':
-          finishLesson?'Tap the arrow by your Marks to finish.':lessonPlay?'Drag Potential to the top of your Air slot to play it upright.':lessonRight?'Tap Air to Bless and Lock it.':null;
+          finishLesson?'Tap End turn beside your Marks to finish.':lessonPlay?'Drag Potential to the top of your Air slot to play it upright.':lessonRight?'Tap Air to Bless and Lock it.':null;
         if(tip)practiceTip=`<p class="gw-table-practice">${icon('spark',14)}${h(tip)}</p>`;
       }
       let moves='';
@@ -2195,7 +2248,7 @@ document.addEventListener('DOMContentLoaded',()=>{
       }
       const focusedIndex=owner?.hand.indexOf(selectedCard)??-1;
       const focused=focusedIndex>=0?card(selectedCard):null;
-      const handPlays=playing&&focused?preferredPlays(s,chosen.filter(({a})=>a.id===selectedCard)):[];
+      const handPlays=playing&&focused?suggested(s,preferredPlays(s,chosen.filter(({a})=>a.id===selectedCard))):[];
       const cardViewer=focused&&!discarding?`<section data-panel="hand-card" class="gw-hand-focus" hidden>
         <div class="gw-card-pager" aria-label="Browse hand">
           ${button('‹','hand-step:-1',`aria-label="Previous card" ${focusedIndex===0?'disabled':''}`)}
@@ -2221,7 +2274,7 @@ document.addEventListener('DOMContentLoaded',()=>{
         ${button(winnerIfEnded>=0?'End turn':'Draw free · end turn','draw:deck')}
         ${button('Cancel','cancel-deck')}</div>`:'';
       const hand=owner&&!handoff?`<section class="gw-table-hand" ${canDrag?'data-drop-hand':''} aria-label="Your hand">
-        ${restorePrompt}${deckPrompt}<div class="gw-table-hand-cards">${owner.hand.map(id=>{
+        <p class="gw-table-caption"><span>${discarding?'Choose a card to discard':'Your hand · '+owner.hand.length}</span>${playing&&!restoration&&!deckChoice?'<span class="gw-caption-hint">Tap a card to see its plays</span>':''}</p>${restorePrompt}${deckPrompt}<div class="gw-table-hand-cards">${owner.hand.map(id=>{
           const c=card(id),usable=matches.some(({a})=>a.id===id||a.cost.includes(id));
           const cmd=restoration?'payment-card':discarding?'discard':playing?'card':'inspect';
           const chosen=restoration?.id===id;
