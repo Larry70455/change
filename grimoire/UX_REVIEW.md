@@ -62,4 +62,4 @@ On the web, the **Adept level** picker on the start screen applies to Play vs AI
 
 ## Not verified
 - I only ran PSP changes through a Node frame loop with stubbed native calls (20,000 random frames, no errors). Check them in PPSSPP or on hardware.
-- Nothing was deployed to Cloudflare. Stage with `python3 web/cloudflare/deploy.py --stage` when you want a release. The art prefix doesn't change.
+- **Deployed** November 22, 2026 as release `great-work-deck-9da3628394`, Worker version `99c292be-d6c6-4b56-a93a-e8ee6e0b6fbf` (deployment `f35c3940…`). It was three-way merged onto the then-live `great-work-deck-fb372fd9b2`, which had added the six-card Abundance draw after the handoff snapshot. The art prefix is unchanged. Roll back by deploying `a920829e-7710-4d84-8aa7-5f4a27f93bbd`.

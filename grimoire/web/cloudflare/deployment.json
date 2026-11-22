@@ -1,10 +1,10 @@
 {
   "account": "4a51a810fc3401af9d8a53d334bf5ead",
   "worker": "grimoire",
-  "deployment": "bfb7c036-bdb7-48fd-a97b-8ae5af0d6990",
+  "deployment": "f35c3940-9f1f-431b-b2f8-c8cac7bf5c3b",
   "versions": [
     {
-      "version_id": "71945b35-9839-4780-bff6-c01958230bf1",
+      "version_id": "99c292be-d6c6-4b56-a93a-e8ee6e0b6fbf",
       "percentage": 100
     }
   ],
@@ -32,5 +32,6 @@
       "type": "kv_namespace",
       "namespace_id": "a4d8ce55cf554e4d95d8a0febf851045"
     }
-  ]
+  ],
+  "previous_version": "a920829e-7710-4d84-8aa7-5f4a27f93bbd"
 }
