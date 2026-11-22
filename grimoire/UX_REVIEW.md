@@ -40,6 +40,18 @@ AI-vs-AI test runs found two weaknesses in the AI.
 
 Results over 400 games, alternating seats: **the new AI beats the old one 82% of the time.** Avoidable losses went from 15 per 100 to 0. Raising the Lock weight or changing the risk weight made it weaker, so those stay as they were. Because Guided Practice uses the same AI, it is tougher there too. `tests/verify.mjs` still confirms the web and PSP engines match.
 
+### Difficulty levels
+
+`state.difficulty` selects **Easy**, **Normal** or **Hard**. Later rounds keep the level, and Guided Practice always uses Easy.
+
+| Level | Behaviour | Win rate over 200 games |
+| --- | --- | --- |
+| Easy | Plans two moves ahead, doesn't search for a line break, and stops early in 15% of turns | 13.5% vs Normal |
+| Normal | The original planner plus the line-break search | 47.5% vs the original AI |
+| Hard | Normal plus judging the rival's next Blessings | 69% vs Normal, 78% vs the original AI |
+
+On the web, the **Adept level** picker on the start screen applies to Play vs AI and to every AI seat in a custom game. The browser remembers the choice, and the rival's name shows a level tag. On the PSP, press Left/Right on the title menu; Up/Down still picks the mode.
+
 ## Recommended next steps (not done)
 
 1. **Explain the Hex flip on screen.** The banner says it happened. A small arrow animation on the flipped card would show the direction.

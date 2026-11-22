@@ -1448,6 +1448,9 @@ body:has(#game.gw-screen:not([hidden])){overflow:hidden}
 #game .gw-table-shelf[data-draw=true] p.gw-table-caption{color:#f6dda8}
 #game .gw-table-shelf p.gw-table-caption span:last-child{flex:none;width:var(--card-width,auto);text-align:center}
 #game .gw-caption-hint{opacity:.75;font-weight:500}
+#game .gw-level{display:inline-flex;align-items:center;gap:6px;margin:14px 0 4px 6px;color:var(--gw-gold);font-size:.8rem;vertical-align:middle}
+#game .gw-level-tag{margin-left:4px;padding:1px 5px;border:1px solid #8f7a91;border-radius:4px;color:#cdb9cf;font:650 .62rem/1.2 system-ui,sans-serif}
+#game .gw-level select{display:inline-block;width:auto;margin:0;min-height:42px}
 #game .gw-expanded:has(.gw-action-prompt){width:min(460px,94vw)}
 #game .gw-expanded:has(.gw-action-prompt)>header{margin-bottom:0}
 #game .gw-action-prompt h2{margin-top:0}
@@ -1548,6 +1551,7 @@ function createGreatWork(deck, rng=Math.random) {
     place(s.players[0].hand,0,'major-potential');
     place(s.shelf,0,'water-01');
     s.practice=true;
+    s.difficulty='easy';
     return s;
   }
   function ready(s){
@@ -1571,7 +1575,9 @@ function createGreatWork(deck, rng=Math.random) {
   }
   function nextRound(s){
     if(s.phase!=='roundOver'||s.matchOver)throw Error('There is no next round.');
-    return round(s.players,s.winner===null?1-s.starter:1-s.winner,s.wins,s.roundNumber+1);
+    const next=round(s.players,s.winner===null?1-s.starter:1-s.winner,s.wins,s.roundNumber+1);
+    if(s.difficulty)next.difficulty=s.difficulty;
+    return next;
   }
   const winningRival=s=>s.players.findIndex((p,i)=>i!==s.turn&&threatened(p));
   const draws=s=>[...s.shelf.map((_,i)=>String(i)),...(s.deck.length?['deck']:[])];
@@ -1789,10 +1795,11 @@ function createGreatWork(deck, rng=Math.random) {
     }));
     return {...q,work};
   }
+  let foresight=true;
   function positionValue(s,seat){
     if(s.phase==='roundOver')return s.winner===seat?10000:s.winner===null?0:-10000;
     const p=s.players[seat], rivals=s.players.filter((_,i)=>i!==seat);
-    const risk=rivals.map(q=>threatened(q)?235:boardValue(outlook(q))*.57);
+    const risk=rivals.map(q=>threatened(q)?235:boardValue(foresight?outlook(q):q)*.57);
     return boardValue(p)+handValue(p)*.76-Math.max(...risk)-risk.reduce((n,v)=>n+v,0)*.12;
   }
   function planningCopy(s){
@@ -1892,7 +1899,19 @@ function createGreatWork(deck, rng=Math.random) {
       const lesson=legal(s).find(a=>a.kind==='Hex'&&a.e==='Air'&&a.i===0);
       if(lesson){execute(s,lesson);return}
     }
+    // Easy: shallow plans, no defensive search, sometimes stops early. Normal: defends but
+    // ignores the rival's next Blessings. Hard: full planning (default).
+    const level=s.difficulty??'hard';
+    foresight=level==='hard';
     const urgent=winningRival(s)>=0;
+    if(level==='easy'){
+      if(!urgent&&rng()<.15){endActions(s);return}
+      const move=planTurn(s,2);
+      if(move?.a){execute(s,move.a);return}
+      if(move?.face){restoreMark(s,move.face,move.ids);return}
+      endActions(s);
+      return;
+    }
     if(urgent){
       const fix=breakLine(s,4);
       if(fix?.a){execute(s,fix.a);return}
@@ -2021,6 +2040,11 @@ document.addEventListener('DOMContentLoaded',()=>{
   const markCost=(s,o)=>actionCost(o).map(id=>s.players[s.turn].hand.includes(id)
     ?'Discard '+card(id).name+' ('+game.sign(id)+')':game.sign(id)).join(' · ')||'Free';
   let state=null,quick=false,setup=null,seatCount=2,lastHuman=null;
+  const levels=['easy','normal','hard'];
+  let difficulty='normal';
+  try{const saved=localStorage.getItem('gw-difficulty');if(levels.includes(saved))difficulty=saved}catch{}
+  const levelPicker=()=>`<label class="gw-level">Adept level <select id="gw-difficulty">${levels.map(l=>
+    `<option value="${l}" ${l===difficulty?'selected':''}>${l[0].toUpperCase()+l.slice(1)}</option>`).join('')}</select></label>`;
   let selected=null,selectedCard=null,target=null,source=null,commands=[];
   let swipeStart=null, rotation={x:0,y:0}, modalOpener=null;
   let timer,cornerTimer,faces=new Map(),previousTurn='',settingsOpen=false;
@@ -2040,7 +2064,7 @@ document.addEventListener('DOMContentLoaded',()=>{
     <dt>Ward or draw</dt><dd>Set any hand card face down at its tier cost, using either sign. A Mystery Ward costs 1 Mark. Keep one Ward. Reveal it to block a Hex, then discard it. Spend 1 Mark of either sign to draw an extra card.</dd>
     <dt>Finish the turn</dt><dd>Check the rivals’ alignments, then take one free draw. Refill the Shelf from the deck and discard down to seven cards.</dd>
     <dt>Winning</dt><dd>When you end your turn, any rival who still has four cards facing the same way wins. If multiple rivals qualify, they tie. If the deck and Shelf run out first, the largest alignment wins.</dd></dl></details>`;
-  const setupForm=()=>`<section class="gw-start"><div><p class="gw-kicker">A game of the Grimoire</p><h2>Gather the four elements.</h2><p>Align all four elements and hold them through a rival’s turn.</p>${button('Practice with a guide','practice','class="gw-primary"')} ${button('Play vs AI','quick')}<p class="gw-note">Practice walks you through playing, drawing, and recovering from an attack.</p></div><div class="gw-start-art" aria-hidden="true">${backArt()}</div></section>
+  const setupForm=()=>`<section class="gw-start"><div><p class="gw-kicker">A game of the Grimoire</p><h2>Gather the four elements.</h2><p>Align all four elements and hold them through a rival’s turn.</p>${button('Practice with a guide','practice','class="gw-primary"')} ${button('Play vs AI','quick')}${levelPicker()}<p class="gw-note">Practice walks you through playing, drawing, and recovering from an attack. Adept level applies to every AI seat.</p></div><div class="gw-start-art" aria-hidden="true">${backArt()}</div></section>
     <details class="gw-settings" ${settingsOpen?'open':''}><summary>Custom game</summary><form id="gw-setup"><label>Seats <select id="gw-count">${[2,3,4].map(n=>`<option ${n===seatCount?'selected':''}>${n}</option>`).join('')}</select></label><div class="gw-seats">${Array.from({length:seatCount},(_,i)=>`<div><label>Seat ${i+1} <input name="name${i}" maxlength="24" value="${h(setup?.[i]?.name??(i===0?'Player 1':'Player '+(i+1)))}"></label><label>Controller <select name="type${i}"><option>Human</option><option ${(setup?.[i]?.ai??i>0)?'selected':''}>AI</option></select></label></div>`).join('')}</div><p class="gw-note">Two-seat custom games are best of three. Human seats share this device.</p><button class="gw-primary">Start custom game</button></form></details>`;
   function turnOptions(s,mark=null){
     return game.legal(s).filter(a=>mark===null||a.cost.includes(mark)).map(a=>({a}));
@@ -2213,7 +2237,7 @@ document.addEventListener('DOMContentLoaded',()=>{
           <div class="gw-table-corner gw-table-corner-right">${iconControl('menu','Game settings','expand:menu')}</div>`:'';
         const phaseLabel=i===privateIndex?(drawing?'Free draw':discarding?'Discard a card':''):isTurn&&q.ai?'Thinking…':isTurn?'Their turn':'';
         return `<article class="gw-table-field ${own?'gw-table-own':'gw-table-rival'}" data-seat="${i}" data-turn="${isTurn}" data-threat="${threat}" aria-label="${h(seatName(i)+' field')}" ${isTurn?'aria-current="true"':''}>
-          <header class="gw-table-field-head ${row===0?'gw-table-with-controls':''}">${cornerControls}<h3>${h(seatName(i))}</h3>
+          <header class="gw-table-field-head ${row===0?'gw-table-with-controls':''}">${cornerControls}<h3>${h(seatName(i))}${q.ai&&!s.practice?`<small class="gw-level-tag">${h((s.difficulty??'hard').replace(/^./,c=>c.toUpperCase()))}</small>`:''}</h3>
           ${phaseLabel?`<span class="gw-table-phase" role="status">${phaseLabel}</span>`:''}
           ${marks?`<div class="gw-table-marks" aria-label="${h(seatName(i))} Marks">${marks}</div>`:''}
           ${isTurn&&playing?`<div class="gw-table-finish"><button type="button" class="gw-end-turn" data-gw="end" title="Finish turn"><span>End turn</span>${icon('finish',16)}</button></div>`:''}
@@ -2396,9 +2420,14 @@ document.addEventListener('DOMContentLoaded',()=>{
     return Array.from({length:seatCount},(_,i)=>({name:String(data.get('name'+i)||'').trim()||'Player '+(i+1),ai:data.get('type'+i)==='AI'}));
   }
   function start(seats,singleRound){
-    expanded=null;modalOpener=null;restoration=null;deckChoice=false;prompt=null;quick=singleRound;lastHuman=null;previousTurn='';faces.clear();clearSelection();state=game.round(seats);
+    expanded=null;modalOpener=null;restoration=null;deckChoice=false;prompt=null;quick=singleRound;lastHuman=null;previousTurn='';faces.clear();clearSelection();state=game.round(seats);state.difficulty=difficulty;
   }
   root.addEventListener('change',event=>{
+    if(event.target.id==='gw-difficulty'){
+      difficulty=levels.includes(event.target.value)?event.target.value:'normal';
+      try{localStorage.setItem('gw-difficulty',difficulty)}catch{}
+      return;
+    }
     if(event.target.id!=='gw-count')return;
     setup=readSeats(event.target.form);
     settingsOpen=true;seatCount=Number(event.target.value);render();

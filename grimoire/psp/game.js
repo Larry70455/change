@@ -70,6 +70,7 @@ function createGreatWork(deck, rng=Math.random) {
     place(s.players[0].hand,0,'major-potential');
     place(s.shelf,0,'water-01');
     s.practice=true;
+    s.difficulty='easy';
     return s;
   }
   function ready(s){
@@ -93,7 +94,9 @@ function createGreatWork(deck, rng=Math.random) {
   }
   function nextRound(s){
     if(s.phase!=='roundOver'||s.matchOver)throw Error('There is no next round.');
-    return round(s.players,s.winner===null?1-s.starter:1-s.winner,s.wins,s.roundNumber+1);
+    const next=round(s.players,s.winner===null?1-s.starter:1-s.winner,s.wins,s.roundNumber+1);
+    if(s.difficulty)next.difficulty=s.difficulty;
+    return next;
   }
   const winningRival=s=>s.players.findIndex((p,i)=>i!==s.turn&&threatened(p));
   const draws=s=>[...s.shelf.map((_,i)=>String(i)),...(s.deck.length?['deck']:[])];
@@ -311,10 +314,11 @@ function createGreatWork(deck, rng=Math.random) {
     }));
     return {...q,work};
   }
+  let foresight=true;
   function positionValue(s,seat){
     if(s.phase==='roundOver')return s.winner===seat?10000:s.winner===null?0:-10000;
     const p=s.players[seat], rivals=s.players.filter((_,i)=>i!==seat);
-    const risk=rivals.map(q=>threatened(q)?235:boardValue(outlook(q))*.57);
+    const risk=rivals.map(q=>threatened(q)?235:boardValue(foresight?outlook(q):q)*.57);
     return boardValue(p)+handValue(p)*.76-Math.max(...risk)-risk.reduce((n,v)=>n+v,0)*.12;
   }
   function planningCopy(s){
@@ -414,7 +418,19 @@ function createGreatWork(deck, rng=Math.random) {
       const lesson=legal(s).find(a=>a.kind==='Hex'&&a.e==='Air'&&a.i===0);
       if(lesson){execute(s,lesson);return}
     }
+    // Easy: shallow plans, no defensive search, sometimes stops early. Normal: defends but
+    // ignores the rival's next Blessings. Hard: full planning (default).
+    const level=s.difficulty??'hard';
+    foresight=level==='hard';
     const urgent=winningRival(s)>=0;
+    if(level==='easy'){
+      if(!urgent&&rng()<.15){endActions(s);return}
+      const move=planTurn(s,2);
+      if(move?.a){execute(s,move.a);return}
+      if(move?.face){restoreMark(s,move.face,move.ids);return}
+      endActions(s);
+      return;
+    }
     if(urgent){
       const fix=breakLine(s,4);
       if(fix?.a){execute(s,fix.a);return}
@@ -491,6 +507,7 @@ highlight(...eased);
 }
 let holder=-1, preview=null, rx=0, ry=0, pay=null, ticks=0, error='', analogDirection=0, analogNext=0, lastPhase='';
 const modes=['Solo vs. the Adept','2 players','3 players','4 players','Guided practice'];
+const levels=['easy','normal','hard'];let level=1;
 let guide=false;
 const solo=()=>mode===0||mode===4;
 const card=id=>game.cards.get(id);
@@ -508,7 +525,7 @@ const image=(id,x,y,w,h,reversed=false)=>art(card(id)?.tex??90,x,y,w,h,0,0,rever
 function begin(){
 const seats=solo()?[{name:'You',ai:false},{name:'The Adept',ai:true}]:
 Array.from({length:mode+1},(_,i)=>({name:'Player '+(i+1),ai:false}));
-guide=mode===4;state=guide?game.practiceRound():game.round(seats);dirty=true;runningMode=mode;modeMenu=false;holder=solo()?0:-1;section=0;slot=side=0;menu=preview=pay=null;error='';lastPhase='';
+guide=mode===4;state=guide?game.practiceRound():game.round(seats);if(!guide)state.difficulty=levels[level];dirty=true;runningMode=mode;modeMenu=false;holder=solo()?0:-1;section=0;slot=side=0;menu=preview=pay=null;error='';lastPhase='';
 }
 function show(title,items){menu={title,items};cursor=0}
 function dismiss(){menu=null;cursor=0}
@@ -830,8 +847,10 @@ show('Ward',[item('Keep Ward',()=>{dismiss();preview=null},15),item('Discard War
 function handle(b){
 const hit=k=>(b&keys[k])!==0;
 if(modeMenu){
-if(hit('up')||hit('left'))mode=(mode+modes.length-1)%modes.length;
-if(hit('down')||hit('right'))mode=(mode+1)%modes.length;
+if(hit('up'))mode=(mode+modes.length-1)%modes.length;
+if(hit('down'))mode=(mode+1)%modes.length;
+if(hit('left'))level=(level+2)%3;
+if(hit('right'))level=(level+1)%3;
 if(hit('cross'))begin();
 if(hit('circle')&&state){mode=runningMode;modeMenu=false}
 return;
@@ -1043,6 +1062,7 @@ top('PSP build 20');
 image(null,306,58,114,156);
 modes.forEach((v,i)=>{border(32,42+i*38,238,32,0x624760);label(v,44,48+i*38,paper,25,1.13)});
 easeFocus('setup',32,42+mode*38,238,32);
+label('Adept level  < '+['Easy','Normal','Hard'][level]+' >   Left/Right',32,233,gold,40,.85);
 padFooter([[21,'Choose',110],[22,'Confirm',110],[23,'Back',110]]);return;
 }
 if(hidden()&&!menu){top('Private handoff');label('Pass the PSP to '+state.players[actor()].name,70,107,gold,42,1.24);padFooter([[22,'Reveal your hand',170]]);return}
